@@ -29,6 +29,8 @@ interface GeminiRepository {
     ): Result<DiscussionSynthesisResult>
 
     fun isApiKeyConfigured(): Boolean
+
+    fun saveCustomApiKey(key: String)
 }
 
 class GeminiRepositoryImpl(
@@ -37,16 +39,23 @@ class GeminiRepositoryImpl(
 
     private val tag = "GeminiRepository"
     private val defaultModelName = "gemini-3.5-flash"
+    private val prefs = context.getSharedPreferences("diskusiku_prototype_prefs", Context.MODE_PRIVATE)
 
     /**
-     * Securely checks if the Gemini API Key is configured via Secrets Panel / BuildConfig.
+     * Securely checks if the Gemini API Key is configured via BuildConfig or stored prototype key.
      */
     override fun isApiKeyConfigured(): Boolean {
-        val key = BuildConfig.GEMINI_API_KEY
+        val key = getSecureApiKey()
         return key.isNotBlank() && key != "MY_GEMINI_API_KEY"
     }
 
+    override fun saveCustomApiKey(key: String) {
+        prefs.edit().putString("custom_gemini_key", key.trim()).apply()
+    }
+
     private fun getSecureApiKey(): String {
+        val customKey = prefs.getString("custom_gemini_key", "") ?: ""
+        if (customKey.isNotBlank()) return customKey.trim()
         return BuildConfig.GEMINI_API_KEY.trim()
     }
 

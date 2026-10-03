@@ -23,8 +23,10 @@ jobs:
           java-version: '17'
           cache: 'gradle'
 
-      - name: Setup Android SDK
-        uses: android-actions/setup-android@v3
+      - name: Accept Android SDK Licenses
+        run: |
+          echo "Accepting Android SDK licenses..."
+          yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --licenses || true
 
       - name: Setup Environment & Secrets
         env:
@@ -33,13 +35,17 @@ jobs:
           echo "Setting up .env file..."
           if [ -n "$GEMINI_SECRET" ]; then
             echo "GEMINI_API_KEY=$GEMINI_SECRET" > .env
-            echo "GEMINI_API_KEY injected from GitHub Secrets."
+            echo "GEMINI_API_KEY injected successfully from GitHub Secrets."
           else
-            echo "GEMINI_API_KEY not found in repository secrets, using .env.example fallback."
-            cp .env.example .env
+            echo "GEMINI_API_KEY secret not found in repository. Creating prototype fallback."
+            if [ -f .env.example ]; then
+              cp .env.example .env
+            else
+              echo "GEMINI_API_KEY=MY_GEMINI_API_KEY" > .env
+            fi
           fi
 
-      - name: Generate Automatic Keystore (Self-Signed)
+      - name: Generate Automatic Release Keystore
         run: |
           echo "Generating automated upload keystore for release build..."
           keytool -genkeypair -v \
@@ -50,8 +56,8 @@ jobs:
             -validity 10000 \
             -storepass android123 \
             -keypass android123 \
-            -dname "CN=Diskusiku App, OU=Android, O=Diskusiku, L=Jakarta, ST=ID, C=ID"
-          echo "Keystore generated successfully at $(pwd)/my-upload-key.jks"
+            -dname "CN=Diskusiku, OU=Mobile, O=Diskusiku, L=Jakarta, ST=DKI, C=ID"
+          echo "Keystore created at $(pwd)/my-upload-key.jks"
 
       - name: Grant Execute Permission for Gradlew
         run: chmod +x gradlew
@@ -62,7 +68,7 @@ jobs:
           STORE_PASSWORD: android123
           KEY_PASSWORD: android123
         run: |
-          ./gradlew assembleDebug assembleRelease --stacktrace
+          ./gradlew assembleDebug assembleRelease --no-daemon --stacktrace
 
       - name: Upload Debug APK Artifact
         uses: actions/upload-artifact@v4

@@ -43,6 +43,15 @@ class DiscussionViewModel(application: Application) : AndroidViewModel(applicati
 
     val categories = listOf("Semua", "UI/UX", "Android", "AI & ML", "Ide Produk")
 
+    private val _isApiKeyConfigured = MutableStateFlow(geminiRepository.isApiKeyConfigured())
+    val isApiKeyConfigured: StateFlow<Boolean> = _isApiKeyConfigured.asStateFlow()
+
+    fun saveCustomApiKey(key: String) {
+        geminiRepository.saveCustomApiKey(key)
+        _isApiKeyConfigured.value = geminiRepository.isApiKeyConfigured()
+        showFeedback(if (_isApiKeyConfigured.value) "API Key berhasil disimpan!" else "API Key belum valid")
+    }
+
     // Reactive discussions from Room based on query and category (real data only, no dummy data)
     val discussions: StateFlow<List<DiscussionEntity>> = combine(
         _searchQuery,

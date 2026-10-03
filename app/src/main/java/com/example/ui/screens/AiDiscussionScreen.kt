@@ -22,6 +22,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.material.icons.Icons
@@ -31,12 +32,15 @@ import androidx.compose.material.icons.filled.BookmarkAdd
 import androidx.compose.material.icons.filled.DeleteSweep
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -72,8 +76,11 @@ fun AiDiscussionScreen(
     val messages by viewModel.chatMessages.collectAsStateWithLifecycle()
     val isAiThinking by viewModel.isAiThinking.collectAsStateWithLifecycle()
     val feedbackMessage by viewModel.userFeedbackMessage.collectAsStateWithLifecycle()
+    val isKeyConfigured by viewModel.isApiKeyConfigured.collectAsStateWithLifecycle()
 
     var inputText by remember { mutableStateOf("") }
+    var showApiKeyDialog by remember { mutableStateOf(false) }
+    var dialogKeyInput by remember { mutableStateOf("") }
     val listState = rememberLazyListState()
 
     // Scroll to latest message on change
@@ -134,7 +141,9 @@ fun AiDiscussionScreen(
 
                         Spacer(modifier = Modifier.width(10.dp))
 
-                        Column {
+                        Column(
+                            modifier = Modifier.clickable { showApiKeyDialog = true }
+                        ) {
                             Text(
                                 text = "Ruang Diskusi AI",
                                 style = MaterialTheme.typography.titleMedium,
@@ -142,9 +151,9 @@ fun AiDiscussionScreen(
                                 color = MaterialTheme.colorScheme.onSurface
                             )
                             Text(
-                                text = if (viewModel.geminiRepository.isApiKeyConfigured()) "Gemini 3.5 Flash • Terhubung" else "Gemini 3.5 Flash • Atur API Key",
+                                text = if (isKeyConfigured) "Gemini 3.5 Flash • Terhubung" else "Gemini 3.5 Flash • Klik untuk Atur Key",
                                 style = MaterialTheme.typography.labelSmall,
-                                color = if (viewModel.geminiRepository.isApiKeyConfigured()) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error
+                                color = if (isKeyConfigured) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error
                             )
                         }
                     }
@@ -196,13 +205,14 @@ fun AiDiscussionScreen(
                 }
             }
 
-            if (!viewModel.geminiRepository.isApiKeyConfigured()) {
+            if (!isKeyConfigured) {
                 Surface(
                     color = MaterialTheme.colorScheme.tertiaryContainer,
                     shape = ExpressiveThemeTokens.shapes.morphMedium,
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(horizontal = 16.dp, vertical = 6.dp)
+                        .clickable { showApiKeyDialog = true }
                 ) {
                     Row(
                         modifier = Modifier.padding(12.dp),
@@ -216,7 +226,7 @@ fun AiDiscussionScreen(
                         )
                         Spacer(modifier = Modifier.width(8.dp))
                         Text(
-                            text = "Konfigurasi: Masukkan GEMINI_API_KEY di Secrets Panel AI Studio untuk aktivasi penuh Gemini 3.5 Flash.",
+                            text = "Aktivasi Gemini: Klik di sini untuk memasukkan API Key atau konfigurasikan via GitHub Secrets / AI Studio.",
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onTertiaryContainer
                         )
@@ -336,6 +346,54 @@ fun AiDiscussionScreen(
                     )
                 }
             }
+        }
+
+        // API Key Configuration Dialog (Prototype Convenience)
+        if (showApiKeyDialog) {
+            AlertDialog(
+                onDismissRequest = { showApiKeyDialog = false },
+                title = {
+                    Text(
+                        text = "Konfigurasi Gemini API",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold
+                    )
+                },
+                text = {
+                    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                        Text(
+                            text = "Untuk prototype ini, Anda dapat menempelkan Gemini API Key Anda langsung di sini atau mengonfigurasikannya di GitHub Secrets (GEMINI_API_KEY).",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        OutlinedTextField(
+                            value = dialogKeyInput,
+                            onValueChange = { dialogKeyInput = it },
+                            label = { Text("Gemini API Key") },
+                            placeholder = { Text("AIzaSy...") },
+                            singleLine = true,
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                    }
+                },
+                confirmButton = {
+                    TextButton(
+                        onClick = {
+                            if (dialogKeyInput.isNotBlank()) {
+                                viewModel.saveCustomApiKey(dialogKeyInput.trim())
+                                showApiKeyDialog = false
+                            }
+                        }
+                    ) {
+                        Text("Simpan", fontWeight = FontWeight.Bold)
+                    }
+                },
+                dismissButton = {
+                    TextButton(onClick = { showApiKeyDialog = false }) {
+                        Text("Batal")
+                    }
+                }
+            )
         }
     }
 }
