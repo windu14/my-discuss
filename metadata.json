@@ -1,0 +1,6 @@
+{
+  "name": "Diskusiku",
+  "description": "Basis data arsip dan pencarian diskusi AI dengan desain Material 3 Expressive adaptif.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
