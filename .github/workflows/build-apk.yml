@@ -30,19 +30,25 @@ jobs:
 
       - name: Setup Environment & Secrets
         env:
+          OPENROUTER_SECRET: ${{ secrets.OPENROUTER_API_KEY }}
           GEMINI_SECRET: ${{ secrets.GEMINI_API_KEY }}
         run: |
           echo "Setting up .env file..."
-          if [ -n "$GEMINI_SECRET" ]; then
-            echo "GEMINI_API_KEY=$GEMINI_SECRET" > .env
-            echo "GEMINI_API_KEY injected successfully from GitHub Secrets."
+          if [ -f .env.example ]; then
+            cp .env.example .env
           else
-            echo "GEMINI_API_KEY secret not found in repository. Creating prototype fallback."
-            if [ -f .env.example ]; then
-              cp .env.example .env
-            else
-              echo "GEMINI_API_KEY=MY_GEMINI_API_KEY" > .env
-            fi
+            echo "OPENROUTER_API_KEY=MY_OPENROUTER_API_KEY" > .env
+            echo "GEMINI_API_KEY=MY_GEMINI_API_KEY" >> .env
+          fi
+
+          if [ -n "$OPENROUTER_SECRET" ]; then
+            sed -i "s|^OPENROUTER_API_KEY=.*|OPENROUTER_API_KEY=$OPENROUTER_SECRET|" .env || echo "OPENROUTER_API_KEY=$OPENROUTER_SECRET" >> .env
+            echo "OPENROUTER_API_KEY injected successfully from GitHub Secrets."
+          fi
+
+          if [ -n "$GEMINI_SECRET" ]; then
+            sed -i "s|^GEMINI_API_KEY=.*|GEMINI_API_KEY=$GEMINI_SECRET|" .env || echo "GEMINI_API_KEY=$GEMINI_SECRET" >> .env
+            echo "GEMINI_API_KEY injected successfully from GitHub Secrets."
           fi
 
       - name: Restore or Generate Debug Keystore

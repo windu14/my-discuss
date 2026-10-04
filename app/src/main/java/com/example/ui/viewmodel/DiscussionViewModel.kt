@@ -46,6 +46,18 @@ class DiscussionViewModel(application: Application) : AndroidViewModel(applicati
     private val _isApiKeyConfigured = MutableStateFlow(geminiRepository.isApiKeyConfigured())
     val isApiKeyConfigured: StateFlow<Boolean> = _isApiKeyConfigured.asStateFlow()
 
+    private val _selectedModel = MutableStateFlow(geminiRepository.getSelectedModel())
+    val selectedModel: StateFlow<String> = _selectedModel.asStateFlow()
+
+    val availableModels = geminiRepository.getAvailableModels()
+
+    fun selectModel(modelId: String) {
+        geminiRepository.setSelectedModel(modelId)
+        _selectedModel.value = modelId
+        val modelName = availableModels.find { it.id == modelId }?.displayName ?: modelId
+        showFeedback("Model diganti ke $modelName")
+    }
+
     fun saveCustomApiKey(key: String) {
         geminiRepository.saveCustomApiKey(key)
         _isApiKeyConfigured.value = geminiRepository.isApiKeyConfigured()
@@ -210,7 +222,7 @@ class DiscussionViewModel(application: Application) : AndroidViewModel(applicati
                 tags = synthesis.tags,
                 isBookmarked = true,
                 timestamp = System.currentTimeMillis(),
-                aiModel = "Gemini 3.5 Flash"
+                aiModel = availableModels.find { it.id == _selectedModel.value }?.displayName ?: _selectedModel.value
             )
 
             discussionRepository.insertDiscussion(entity)

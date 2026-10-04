@@ -25,6 +25,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material.icons.filled.AutoAwesome
@@ -32,12 +33,14 @@ import androidx.compose.material.icons.filled.BookmarkAdd
 import androidx.compose.material.icons.filled.DeleteSweep
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material.icons.filled.Tune
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -77,11 +80,14 @@ fun AiDiscussionScreen(
     val isAiThinking by viewModel.isAiThinking.collectAsStateWithLifecycle()
     val feedbackMessage by viewModel.userFeedbackMessage.collectAsStateWithLifecycle()
     val isKeyConfigured by viewModel.isApiKeyConfigured.collectAsStateWithLifecycle()
+    val selectedModel by viewModel.selectedModel.collectAsStateWithLifecycle()
 
     var inputText by remember { mutableStateOf("") }
     var showApiKeyDialog by remember { mutableStateOf(false) }
     var dialogKeyInput by remember { mutableStateOf("") }
     val listState = rememberLazyListState()
+
+    val currentModelOption = viewModel.availableModels.find { it.id == selectedModel }
 
     // Scroll to latest message on change
     LaunchedEffect(messages.size, isAiThinking) {
@@ -151,7 +157,7 @@ fun AiDiscussionScreen(
                                 color = MaterialTheme.colorScheme.onSurface
                             )
                             Text(
-                                text = if (isKeyConfigured) "Gemini 3.5 Flash • Terhubung" else "Gemini 3.5 Flash • Klik untuk Atur Key",
+                                text = if (isKeyConfigured) "${currentModelOption?.displayName ?: selectedModel} • Terhubung" else "Pilih Model & Atur Kunci AI",
                                 style = MaterialTheme.typography.labelSmall,
                                 color = if (isKeyConfigured) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error
                             )
@@ -170,6 +176,17 @@ fun AiDiscussionScreen(
                             isPrimary = true,
                             enabled = messages.any { it.sender == MessageSender.USER }
                         )
+
+                        IconButton(
+                            onClick = { showApiKeyDialog = true },
+                            modifier = Modifier.size(36.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Tune,
+                                contentDescription = "Pilih Model & API Key",
+                                tint = MaterialTheme.colorScheme.primary
+                            )
+                        }
 
                         IconButton(
                             onClick = { viewModel.clearChat() },
@@ -226,7 +243,7 @@ fun AiDiscussionScreen(
                         )
                         Spacer(modifier = Modifier.width(8.dp))
                         Text(
-                            text = "Aktivasi Gemini: Klik di sini untuk memasukkan API Key atau konfigurasikan via GitHub Secrets / AI Studio.",
+                            text = "Aktivasi OpenRouter: Klik di sini untuk mengatur API Key & Memilih Model AI (Llama 3.3 70B, DeepSeek R1, Gemini, dll).",
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onTertiaryContainer
                         )
@@ -348,32 +365,104 @@ fun AiDiscussionScreen(
             }
         }
 
-        // API Key Configuration Dialog (Prototype Convenience)
+        // OpenRouter Configuration Dialog (API Key & Model Selection)
         if (showApiKeyDialog) {
+            var tempSelectedModel by remember { mutableStateOf(selectedModel) }
             AlertDialog(
                 onDismissRequest = { showApiKeyDialog = false },
                 title = {
-                    Text(
-                        text = "Konfigurasi Gemini API",
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold
-                    )
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(
+                            imageVector = Icons.Default.Tune,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.size(24.dp)
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            text = "Konfigurasi OpenRouter AI",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
                 },
                 text = {
-                    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .verticalScroll(rememberScrollState()),
+                        verticalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
                         Text(
-                            text = "Untuk prototype ini, Anda dapat menempelkan Gemini API Key Anda langsung di sini atau mengonfigurasikannya di GitHub Secrets (GEMINI_API_KEY).",
+                            text = "Masukkan API Key OpenRouter (diawali sk-or-v1-...) dan pilih model AI yang Anda inginkan.",
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                         OutlinedTextField(
                             value = dialogKeyInput,
                             onValueChange = { dialogKeyInput = it },
-                            label = { Text("Gemini API Key") },
-                            placeholder = { Text("AIzaSy...") },
+                            label = { Text("OpenRouter API Key") },
+                            placeholder = { Text("sk-or-v1-...") },
                             singleLine = true,
                             modifier = Modifier.fillMaxWidth()
                         )
+
+                        Text(
+                            text = "Pilih Model AI (Free Tier & $100 Kredit):",
+                            style = MaterialTheme.typography.titleSmall,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.primary
+                        )
+
+                        viewModel.availableModels.forEach { modelOpt ->
+                            val isSelected = tempSelectedModel == modelOpt.id
+                            Surface(
+                                shape = RoundedCornerShape(10.dp),
+                                color = if (isSelected) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceContainerLow,
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clickable { tempSelectedModel = modelOpt.id }
+                            ) {
+                                Row(
+                                    modifier = Modifier.padding(10.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    RadioButton(
+                                        selected = isSelected,
+                                        onClick = { tempSelectedModel = modelOpt.id }
+                                    )
+                                    Spacer(modifier = Modifier.width(6.dp))
+                                    Column(modifier = Modifier.weight(1f)) {
+                                        Row(
+                                            verticalAlignment = Alignment.CenterVertically,
+                                            horizontalArrangement = Arrangement.spacedBy(6.dp)
+                                        ) {
+                                            Text(
+                                                text = modelOpt.displayName,
+                                                style = MaterialTheme.typography.labelLarge,
+                                                fontWeight = FontWeight.Bold
+                                            )
+                                            Surface(
+                                                shape = RoundedCornerShape(4.dp),
+                                                color = if (modelOpt.isFree) MaterialTheme.colorScheme.tertiary else MaterialTheme.colorScheme.secondary,
+                                                contentColor = Color.White
+                                            ) {
+                                                Text(
+                                                    text = modelOpt.badge,
+                                                    style = MaterialTheme.typography.labelSmall,
+                                                    modifier = Modifier.padding(horizontal = 4.dp, vertical = 2.dp)
+                                                )
+                                            }
+                                        }
+                                        Text(
+                                            text = modelOpt.description,
+                                            style = MaterialTheme.typography.bodySmall,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                                        )
+                                    }
+                                }
+                            }
+                        }
                     }
                 },
                 confirmButton = {
@@ -381,11 +470,14 @@ fun AiDiscussionScreen(
                         onClick = {
                             if (dialogKeyInput.isNotBlank()) {
                                 viewModel.saveCustomApiKey(dialogKeyInput.trim())
-                                showApiKeyDialog = false
                             }
+                            if (tempSelectedModel != selectedModel) {
+                                viewModel.selectModel(tempSelectedModel)
+                            }
+                            showApiKeyDialog = false
                         }
                     ) {
-                        Text("Simpan", fontWeight = FontWeight.Bold)
+                        Text("Simpan & Terapkan", fontWeight = FontWeight.Bold)
                     }
                 },
                 dismissButton = {
