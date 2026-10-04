@@ -45,9 +45,28 @@ jobs:
             fi
           fi
 
+      - name: Restore or Generate Debug Keystore
+        run: |
+          echo "Setting up debug.keystore for assembleDebug..."
+          if [ -f debug.keystore.base64 ]; then
+            base64 -d debug.keystore.base64 > debug.keystore
+            echo "debug.keystore successfully restored from debug.keystore.base64"
+          else
+            keytool -genkeypair -v \
+              -keystore debug.keystore \
+              -alias androiddebugkey \
+              -keyalg RSA \
+              -keysize 2048 \
+              -validity 10000 \
+              -storepass android \
+              -keypass android \
+              -dname "CN=Android Debug,O=Android,C=US"
+            echo "debug.keystore generated successfully via keytool"
+          fi
+
       - name: Generate Automatic Release Keystore
         run: |
-          echo "Generating automated upload keystore for release build..."
+          echo "Generating automated upload keystore for assembleRelease..."
           keytool -genkeypair -v \
             -keystore my-upload-key.jks \
             -alias upload \
@@ -57,7 +76,40 @@ jobs:
             -storepass android123 \
             -keypass android123 \
             -dname "CN=Diskusiku, OU=Mobile, O=Diskusiku, L=Jakarta, ST=DKI, C=ID"
-          echo "Keystore created at $(pwd)/my-upload-key.jks"
+          echo "Release keystore created at $(pwd)/my-upload-key.jks"
+
+      - name: Ensure google-services.json exists
+        run: |
+          if [ ! -f app/google-services.json ]; then
+            echo "Creating google-services.json for Google Services plugin..."
+            cat << 'EOF' > app/google-services.json
+          {
+            "project_info": {
+              "project_number": "100000000000",
+              "project_id": "diskusiku-prototype",
+              "storage_bucket": "diskusiku-prototype.appspot.com"
+            },
+            "client": [
+              {
+                "client_info": {
+                  "mobilesdk_app_id": "1:100000000000:android:0123456789abcdef",
+                  "android_client_info": {
+                    "package_name": "com.aistudio.diskusiku.kypxmq"
+                  }
+                },
+                "oauth_client": [],
+                "api_key": [
+                  {
+                    "current_key": "dummy_firebase_key"
+                  }
+                ],
+                "services": {}
+              }
+            ],
+            "configuration_version": "1"
+          }
+          EOF
+          fi
 
       - name: Grant Execute Permission for Gradlew
         run: chmod +x gradlew
